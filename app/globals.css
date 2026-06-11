@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-astraa-dark: #232234;
+  --color-astraa-violet: #7516EA;
+  --color-astraa-white: #FFFFFF;
+  --color-astraa-coral: #F16B86;
+  --font-raleway: var(--font-raleway);
+}
+
+@layer base {
+  body {
+    @apply font-raleway bg-[#FDFCF9] text-astraa-dark antialiased;
+  }
+}
+
+/* Mandatory Brand Signature Line [cite: 88] */
+.brand-line {
+  @apply w-[2px] h-8 bg-gradient-to-b from-astraa-violet to-astraa-coral mr-4 shrink-0;
+}
