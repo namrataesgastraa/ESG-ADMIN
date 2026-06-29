@@ -3,7 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { createBlogThunk } from '@/lib/store/slices/blogSlice';
+import {
+  createBlogThunk,
+  previewBlogExcelThunk,
+  uploadBlogExcelThunk,
+  clearExcelPreview,
+} from '@/lib/store/slices/blogSlice';
 import { BrandLine } from '@/components/BrandLine';
 import { Upload, ImagePlus, ChevronLeft, Loader2, Link2, Info, Layout, Share2, Type, FileSearch } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -11,7 +16,7 @@ import toast, { Toaster } from 'react-hot-toast';
 export default function CreateBlog() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { loading } = useAppSelector(state => state.blog);
+  const { loading, excelPreview } = useAppSelector(state => state.blog);
 
   // Active Tab Navigation Control
   const [activeTab, setActiveTab] = useState('profiles');
@@ -34,6 +39,9 @@ export default function CreateBlog() {
 
   // Native File Upload State
   const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelPreviewData, setExcelPreviewData] = useState<any | null>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
   const [tab1Image, setTab1Image] = useState<File | null>(null);
   const [tab3Image, setTab3Image] = useState<File | null>(null);
   const [tab5Image, setTab5Image] = useState<File | null>(null);
@@ -168,7 +176,86 @@ export default function CreateBlog() {
       setTabs(updated);
     }
   };
+const handleExcelUpload = async () => {
+  if (!excelFile) {
+    toast.error('Please select an Excel file first.');
+    return;
+  }
 
+  setIsSubmitting(true);
+  const loadingToast = toast.loading('Uploading Excel and creating blog...');
+
+  const data = new FormData();
+  data.append('excel_file', excelFile);
+
+  if (coverImage) data.append('cover_image', coverImage);
+  if (tab1Image) data.append('tab1_image', tab1Image);
+  if (tab3Image) data.append('tab3_image', tab3Image);
+  if (tab5Image) data.append('tab5_image', tab5Image);
+
+  try {
+    await dispatch(uploadBlogExcelThunk(data)).unwrap();
+    toast.success('Excel blog uploaded successfully!', { id: loadingToast });
+    router.push('/blogs');
+  } catch (err: any) {
+    toast.error(err || 'Excel upload failed', { id: loadingToast });
+    setIsSubmitting(false);
+  }
+};
+const handleExcelPreview = async () => {
+  if (!excelFile) {
+    toast.error('Please select an Excel file first.');
+    return;
+  }
+
+  const loadingToast = toast.loading('Reading Excel and generating preview...');
+
+  const data = new FormData();
+  data.append('excel_file', excelFile);
+
+  if (coverImage) {
+    data.append('cover_image', coverImage);
+  }
+
+  try {
+    const result = await dispatch(previewBlogExcelThunk(data)).unwrap();
+    setExcelPreviewData(result);
+    toast.success('Preview generated successfully.', { id: loadingToast });
+  } catch (err: any) {
+    toast.error(err || 'Preview failed.', { id: loadingToast });
+  }
+};
+
+const handleExcelPublish = async () => {
+  if (!excelFile) {
+    toast.error('Please select an Excel file first.');
+    return;
+  }
+
+  if (!excelPreviewData && !excelPreview) {
+    toast.error('Please preview the blog before publishing.');
+    return;
+  }
+
+  setIsSubmitting(true);
+  const loadingToast = toast.loading('Publishing blog from Excel...');
+
+  const data = new FormData();
+  data.append('excel_file', excelFile);
+
+  if (coverImage) {
+    data.append('cover_image', coverImage);
+  }
+
+  try {
+    await dispatch(uploadBlogExcelThunk(data)).unwrap();
+    toast.success('Blog published successfully.', { id: loadingToast });
+    router.push('/blogs');
+  } catch (err: any) {
+    toast.error(err || 'Publishing failed.', { id: loadingToast });
+    setIsSubmitting(false);
+  }
+};
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -247,6 +334,48 @@ export default function CreateBlog() {
             </p>
           </div>
         </div>
+        <div className="bg-white border border-purple-100 rounded-xl p-6 shadow-sm space-y-4">
+  <div>
+    <h2 className="text-sm font-bold text-astraa-violet uppercase tracking-widest">
+      Upload Blog From Excel
+    </h2>
+    <p className="text-xs text-gray-500 mt-1">
+      Select Excel file and publish directly without manual copy-paste.
+    </p>
+  </div>
+
+  <div className="flex items-center gap-4">
+    <input
+      ref={excelInputRef}
+      type="file"
+      accept=".xlsx,.xls"
+      onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+      className="hidden"
+    />
+
+    <button
+      type="button"
+      onClick={() => excelInputRef.current?.click()}
+      className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50"
+    >
+      Choose Excel File
+    </button>
+
+    <span className="text-sm text-gray-500">
+      {excelFile ? excelFile.name : 'No file selected'}
+    </span>
+
+    <button
+      type="button"
+      disabled={isSubmitting || !excelFile}
+      onClick={handleExcelUpload}
+      className="ml-auto px-6 py-2.5 bg-astraa-violet text-white rounded-lg text-sm font-bold shadow-md hover:opacity-95 disabled:opacity-50 flex items-center gap-2"
+    >
+      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload size={16} />}
+      Upload & Publish Excel
+    </button>
+  </div>
+</div>
         {/* <button
           type="submit"
           disabled={isSubmitting}
@@ -256,7 +385,139 @@ export default function CreateBlog() {
           Publish CMS Post
         </button> */}
       </div>
+<div className="bg-white border border-purple-100 rounded-xl p-6 shadow-sm space-y-4">
+  <div>
+    <h2 className="text-sm font-bold text-astraa-violet uppercase tracking-widest">
+      Upload Blog From Excel
+    </h2>
+    <p className="text-xs text-gray-500 mt-1">
+      Upload Excel for blog content and one cover image for the blog hero section.
+    </p>
+  </div>
 
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <input
+        ref={excelInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={(e) => {
+          setExcelFile(e.target.files?.[0] || null);
+          setExcelPreviewData(null);
+          dispatch(clearExcelPreview());
+        }}
+        className="hidden"
+      />
+
+      <button
+        type="button"
+        onClick={() => excelInputRef.current?.click()}
+        className="w-full px-5 py-4 border border-dashed border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50"
+      >
+        Choose Excel File
+      </button>
+
+      <p className="text-xs text-gray-500 mt-2">
+        {excelFile ? excelFile.name : 'No Excel file selected'}
+      </p>
+    </div>
+
+    <div>
+      <input
+  ref={coverInputRef}
+  type="file"
+  accept="image/*"
+  onChange={handleImageChange}
+  className="hidden"
+/>
+      <button
+        type="button"
+        onClick={() => coverInputRef.current?.click()}
+        className="w-full px-5 py-4 border border-dashed border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50"
+      >
+        Choose Cover Image
+      </button>
+
+      <p className="text-xs text-gray-500 mt-2">
+        {coverImage ? coverImage.name : 'No cover image selected'}
+      </p>
+    </div>
+  </div>
+
+  <div className="flex justify-end gap-3 pt-2">
+    <button
+      type="button"
+      onClick={handleExcelPreview}
+      disabled={loading || !excelFile}
+      className="px-6 py-2.5 border border-astraa-violet text-astraa-violet rounded-lg text-sm font-bold hover:bg-astraa-violet/5 disabled:opacity-50"
+    >
+      Preview Blog
+    </button>
+
+    <button
+      type="button"
+      onClick={handleExcelPublish}
+      disabled={isSubmitting || !excelFile || (!excelPreviewData && !excelPreview)}
+      className="px-6 py-2.5 bg-astraa-violet text-white rounded-lg text-sm font-bold shadow-md hover:opacity-95 disabled:opacity-50"
+    >
+      Publish Blog
+    </button>
+  </div>
+</div>
+{(excelPreviewData || excelPreview) && (
+  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-5">
+    <h2 className="text-xl font-extrabold text-astraa-dark">
+      Blog Preview
+    </h2>
+
+    <div className="bg-purple-50 rounded-xl p-6 border border-purple-100">
+      <p className="text-xs font-bold text-astraa-violet uppercase">
+        {(excelPreviewData || excelPreview)?.eyebrow || 'Blog'}
+      </p>
+
+      <h1 className="text-2xl font-extrabold text-gray-900 mt-2">
+        {(excelPreviewData || excelPreview)?.main_title}
+      </h1>
+
+      <p className="text-sm text-gray-500 mt-2">
+        {(excelPreviewData || excelPreview)?.sub_title}
+      </p>
+
+      {coverPreview && (
+        <img
+          src={coverPreview}
+          alt="Cover preview"
+          className="w-full max-h-[300px] object-cover rounded-xl mt-5"
+        />
+      )}
+    </div>
+
+    {(excelPreviewData || excelPreview)?.tabs?.map((tab: any, index: number) => (
+      <div key={index} className="border border-gray-200 rounded-xl p-5">
+        <h3 className="font-bold text-gray-900">
+          {index + 1}. {tab.heading}
+        </h3>
+
+        {tab.content?.paragraphs?.map((p: string, pIndex: number) => (
+          <p key={pIndex} className="text-sm text-gray-600 leading-7 mt-3 text-justify">
+            {p}
+          </p>
+        ))}
+
+        {tab.content?.bullets?.length > 0 && (
+          <ul className="list-disc pl-5 mt-3 space-y-2">
+            {tab.content.bullets.map((b: any, bIndex: number) => (
+              <li key={bIndex} className="text-sm text-gray-600">
+                <strong>{b.lead}</strong>
+                {b.body ? ` — ${b.body}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ))}
+  </div>
+)}
       {/* Split Workspace Layout */}
       <div className="flex gap-8 items-start">
         

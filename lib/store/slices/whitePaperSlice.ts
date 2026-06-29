@@ -6,6 +6,8 @@ import {
   createWhitePaperApi,
   updateWhitePaperApi,
   getWhitePaperByIdApi,
+  previewWhitePaperExcelApi,
+  uploadWhitePaperExcelApi,
 } from '@/lib/api/whitePaperApi';
 import { WhitePaper } from '@/lib/types/whitePaper.types';
 
@@ -14,6 +16,7 @@ interface WhitePaperState {
   pagination: any;
   loading: boolean;
   error: string | null;
+  excelPreview: any | null;
 }
 
 const initialState: WhitePaperState = {
@@ -21,6 +24,7 @@ const initialState: WhitePaperState = {
   pagination: null,
   loading: false,
   error: null,
+  excelPreview: null,
 };
 
 export const fetchWhitePapersThunk = createAsyncThunk(
@@ -74,6 +78,31 @@ export const updateWhitePaperThunk = createAsyncThunk(
   },
 );
 
+export const previewWhitePaperExcelThunk = createAsyncThunk(
+  'whitePaper/previewExcel',
+  async (formData: FormData, { rejectWithValue }) => {
+    try {
+      const response = await previewWhitePaperExcelApi(formData);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Preview failed');
+    }
+  },
+);
+
+export const uploadWhitePaperExcelThunk = createAsyncThunk(
+  'whitePaper/uploadExcel',
+  async (formData: FormData, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await uploadWhitePaperExcelApi(formData);
+      dispatch(fetchWhitePapersThunk({ page: 1, limit: 10, search: '' }));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Upload failed');
+    }
+  },
+);
+
 export const deleteWhitePaperThunk = createAsyncThunk('whitePaper/delete', async (id: number) => {
   await deleteWhitePaperApi(id);
   return id;
@@ -90,7 +119,11 @@ export const toggleWhitePaperStatusThunk = createAsyncThunk(
 const whitePaperSlice = createSlice({
   name: 'whitePaper',
   initialState,
-  reducers: {},
+  reducers: {
+    clearWhitePaperExcelPreview: state => {
+      state.excelPreview = null;
+    },
+  },
   extraReducers: builder => {
     builder
       // Fetch Cases
@@ -140,8 +173,34 @@ const whitePaperSlice = createSlice({
       .addCase(toggleWhitePaperStatusThunk.fulfilled, (state, action) => {
         const item = state.items.find(i => i.id === action.payload.id);
         if (item) item.is_active = action.payload.isActive;
+      })
+      .addCase(previewWhitePaperExcelThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(previewWhitePaperExcelThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.excelPreview = action.payload;
+      })
+      .addCase(previewWhitePaperExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(uploadWhitePaperExcelThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(uploadWhitePaperExcelThunk.fulfilled, state => {
+        state.loading = false;
+        state.excelPreview = null;
+      })
+      .addCase(uploadWhitePaperExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
+
+export const { clearWhitePaperExcelPreview } = whitePaperSlice.actions;
 
 export default whitePaperSlice.reducer;

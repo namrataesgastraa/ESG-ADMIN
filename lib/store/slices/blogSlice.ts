@@ -1,5 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getBlogsApi, deleteBlogApi, patchBlogStatusApi, createBlogApi, fetchBlogByIdApi, updateBlogApi } from '@/lib/api/blogApi';
+import {
+  getBlogsApi,
+  deleteBlogApi,
+  patchBlogStatusApi,
+  createBlogApi,
+  fetchBlogByIdApi,
+  updateBlogApi,
+  uploadBlogExcelApi,
+  previewBlogExcelApi,
+} from '@/lib/api/blogApi';
 import { Blog } from '@/lib/types/blog.types';
 
 interface BlogState {
@@ -12,6 +21,7 @@ interface BlogState {
   } | null;
   loading: boolean;
   error: string | null;
+  excelPreview: any | null;
 }
 
 const initialState: BlogState = {
@@ -19,30 +29,27 @@ const initialState: BlogState = {
   pagination: null,
   loading: false,
   error: null,
+  excelPreview: null,
 };
 
-// --- THUNKS ---
-
-// 1. Fetch All Blogs (with pagination and search)
 export const fetchBlogsThunk = createAsyncThunk(
   'blog/fetchAll',
   async ({ page, limit, search }: { page?: number; limit?: number; search?: string } = {}, { rejectWithValue }) => {
     try {
       const response = await getBlogsApi(page || 1, limit || 10, search || '');
-      return response; // This matches your BlogListResponse
+      return response;
     } catch (error: any) {
       return rejectWithValue(error?.response?.data?.message || 'Failed to fetch blogs');
     }
   }
 );
 
-// 2. Create Blog
 export const createBlogThunk = createAsyncThunk(
   'blog/create',
   async (formData: FormData, { dispatch, rejectWithValue }) => {
     try {
       const response = await createBlogApi(formData);
-      dispatch(fetchBlogsThunk({ page: 1, limit: 10 })); // Refresh list after creation
+      dispatch(fetchBlogsThunk({ page: 1, limit: 10 }));
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error?.response?.data?.message || 'Failed to create blog');
@@ -50,20 +57,43 @@ export const createBlogThunk = createAsyncThunk(
   }
 );
 
-// 3. Delete Blog
+export const previewBlogExcelThunk = createAsyncThunk(
+  'blog/previewExcel',
+  async (formData: FormData, { rejectWithValue }) => {
+    try {
+      const response = await previewBlogExcelApi(formData);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Excel preview failed');
+    }
+  }
+);
+
+export const uploadBlogExcelThunk = createAsyncThunk(
+  'blog/uploadExcel',
+  async (formData: FormData, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await uploadBlogExcelApi(formData);
+      dispatch(fetchBlogsThunk({ page: 1, limit: 10 }));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Excel upload failed');
+    }
+  }
+);
+
 export const deleteBlogThunk = createAsyncThunk(
   'blog/delete',
   async (id: number, { rejectWithValue }) => {
     try {
       await deleteBlogApi(id);
-      return id; // Return ID to remove it from state locally
+      return id;
     } catch (error: any) {
       return rejectWithValue(error?.response?.data?.message || 'Failed to delete blog');
     }
   }
 );
 
-// 4. Toggle Status
 export const toggleBlogStatusThunk = createAsyncThunk(
   'blog/toggleStatus',
   async ({ id, isActive }: { id: number; isActive: boolean }, { rejectWithValue }) => {
@@ -101,15 +131,16 @@ export const updateBlogThunk = createAsyncThunk(
   }
 );
 
-// --- SLICE ---
-
 const blogSlice = createSlice({
   name: 'blog',
   initialState,
-  reducers: {},
+  reducers: {
+    clearExcelPreview: (state) => {
+      state.excelPreview = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      // Fetch Blogs Cases
       .addCase(fetchBlogsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -124,7 +155,6 @@ const blogSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // Create Blog Cases
       .addCase(createBlogThunk.pending, (state) => {
         state.loading = true;
       })
@@ -136,12 +166,35 @@ const blogSlice = createSlice({
         state.error = action.payload as string;
       })
 
-      // Delete Blog Cases
+      .addCase(previewBlogExcelThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(previewBlogExcelThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.excelPreview = action.payload;
+      })
+      .addCase(previewBlogExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      .addCase(uploadBlogExcelThunk.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(uploadBlogExcelThunk.fulfilled, (state) => {
+        state.loading = false;
+        state.excelPreview = null;
+      })
+      .addCase(uploadBlogExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
       .addCase(deleteBlogThunk.fulfilled, (state, action) => {
         state.items = state.items.filter((item) => item.id !== action.payload);
       })
 
-      // Toggle Status Case
       .addCase(toggleBlogStatusThunk.fulfilled, (state, action) => {
         const index = state.items.findIndex((item) => item.id === action.payload.id);
         if (index !== -1) {
@@ -150,5 +203,7 @@ const blogSlice = createSlice({
       });
   },
 });
+
+export const { clearExcelPreview } = blogSlice.actions;
 
 export default blogSlice.reducer;

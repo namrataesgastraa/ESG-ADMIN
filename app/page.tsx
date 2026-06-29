@@ -145,6 +145,7 @@ export default function LoginPage() {
                     }`}
                   >
                     <input
+                      suppressHydrationWarning
                       id="email"
                       type="email"
                       value={email}
@@ -179,6 +180,7 @@ export default function LoginPage() {
                     }`}
                   >
                     <input
+                      suppressHydrationWarning
                       id="password"
                       type="password"
                       value={password}
@@ -203,6 +205,7 @@ export default function LoginPage() {
 
               <div className="mt-10 space-y-3">
                 <button
+                  suppressHydrationWarning
                   type="submit"
                   disabled={loading}
                   className="group relative w-full py-[14px] bg-[#232234] text-white text-[11px]

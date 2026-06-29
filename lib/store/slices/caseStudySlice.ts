@@ -6,6 +6,8 @@ import {
   patchCaseStudyStatusApi,
   updateCaseStudyApi,
   getCaseStudyByIdApi,
+  previewCaseStudyExcelApi,
+  uploadCaseStudyExcelApi,
 } from '@/lib/api/caseStudyApi';
 import { CaseStudy, CaseStudyPagination } from '@/lib/types/caseStudy.types';
 
@@ -14,6 +16,7 @@ interface CaseStudyState {
   pagination: CaseStudyPagination | null;
   loading: boolean;
   error: string | null;
+  excelPreview: any | null;
 }
 
 const initialState: CaseStudyState = {
@@ -21,6 +24,7 @@ const initialState: CaseStudyState = {
   pagination: null,
   loading: false,
   error: null,
+  excelPreview: null,
 };
 
 // THUNK: Fetch All Case Studies
@@ -79,6 +83,31 @@ export const createCaseStudyThunk = createAsyncThunk(
   },
 );
 
+export const previewCaseStudyExcelThunk = createAsyncThunk(
+  'caseStudy/previewExcel',
+  async (formData: FormData, { rejectWithValue }) => {
+    try {
+      const response = await previewCaseStudyExcelApi(formData);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Preview failed');
+    }
+  },
+);
+
+export const uploadCaseStudyExcelThunk = createAsyncThunk(
+  'caseStudy/uploadExcel',
+  async (formData: FormData, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await uploadCaseStudyExcelApi(formData);
+      dispatch(fetchCaseStudiesThunk({}));
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error?.response?.data?.message || 'Upload failed');
+    }
+  },
+);
+
 export const updateCaseStudyThunk = createAsyncThunk(
   'caseStudy/update',
   async ({ id, formData }: { id: number; formData: FormData }, { dispatch, rejectWithValue }) => {
@@ -106,7 +135,11 @@ export const toggleCaseStudyStatusThunk = createAsyncThunk(
 const caseStudySlice = createSlice({
   name: 'caseStudy',
   initialState,
-  reducers: {},
+  reducers: {
+    clearCaseStudyExcelPreview: state => {
+      state.excelPreview = null;
+    },
+  },
   extraReducers: builder => {
     builder
       .addCase(fetchCaseStudiesThunk.pending, state => {
@@ -139,8 +172,34 @@ const caseStudySlice = createSlice({
       .addCase(deleteCaseStudyThunk.fulfilled, (state, action) => {
         const id = action.meta.arg;
         state.items = state.items.filter(item => item.id !== id);
+      })
+      .addCase(previewCaseStudyExcelThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(previewCaseStudyExcelThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.excelPreview = action.payload;
+      })
+      .addCase(previewCaseStudyExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(uploadCaseStudyExcelThunk.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(uploadCaseStudyExcelThunk.fulfilled, state => {
+        state.loading = false;
+        state.excelPreview = null;
+      })
+      .addCase(uploadCaseStudyExcelThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
+
+export const { clearCaseStudyExcelPreview } = caseStudySlice.actions;
 
 export default caseStudySlice.reducer;

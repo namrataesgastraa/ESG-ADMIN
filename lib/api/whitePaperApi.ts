@@ -10,6 +10,12 @@ export const getWhitePaperByIdApi = (id: number) =>
 export const createWhitePaperApi = (data: FormData): Promise<WhitePaperListResponse> =>
   post('/white-paper', data, { headers: { 'Content-Type': 'multipart/form-data' } });
 
+export const previewWhitePaperExcelApi = (data: FormData): Promise<any> =>
+  post('/white-paper/preview-excel', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+
+export const uploadWhitePaperExcelApi = (data: FormData): Promise<any> =>
+  post('/white-paper/upload-excel', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+
 export const updateWhitePaperApi = (id: number, data: FormData) =>
   put(`/white-paper/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
 
@@ -17,4 +23,4 @@ export const deleteWhitePaperApi = (id: number) =>
   del(`/white-paper/${id}`);
 
 export const patchWhitePaperStatusApi = (id: number, is_active: boolean) =>
-  patch(`/white-paper/status/${id}`, { is_active });
+  patch(`/white-paper/${id}/status`, { is_active });

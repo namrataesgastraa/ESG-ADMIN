@@ -3,7 +3,9 @@ export interface WhitePaper {
   title: string;
   normalized_title: string;
   description: string;
-  category_id: number;
+  category_id: number | null;
+  industry_tag?: string | null;
+  slug?: string | null;
   pdf_file: string | null;
   image: string | null;
   is_active: boolean;
@@ -12,7 +14,7 @@ export interface WhitePaper {
   category: {
     id: number;
     name: string;
-  };
+  } | null;
 }
 
 export interface WhitePaperListResponse {

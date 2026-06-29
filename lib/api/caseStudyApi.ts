@@ -22,6 +22,18 @@ export const createCaseStudyApi = (data: FormData): Promise<any> => {
   });
 };
 
+// PREVIEW: parse the Excel without saving (returns the parsed payload)
+export const previewCaseStudyExcelApi = (data: FormData): Promise<any> =>
+  post('/case-study/preview-excel', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+// PUBLISH: parse the Excel and save the case study
+export const uploadCaseStudyExcelApi = (data: FormData): Promise<any> =>
+  post('/case-study/upload-excel', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
 export const updateCaseStudyApi = (id: number, data: FormData): Promise<any> =>
   put(`/case-study/${id}`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -29,4 +41,4 @@ export const updateCaseStudyApi = (id: number, data: FormData): Promise<any> =>
 
 // Toggle Status: Using PATCH for a quick boolean flip
 export const patchCaseStudyStatusApi = (id: number, is_active: boolean): Promise<any> =>
-  patch(`/case-study/status/${id}`, { is_active });
+  patch(`/case-study/${id}/status`, { is_active });

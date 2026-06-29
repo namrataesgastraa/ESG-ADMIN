@@ -1,258 +1,295 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/lib/store/hooks';
-import { createWhitePaperThunk } from '@/lib/store/slices/whitePaperSlice';
-import { fetchWPCategoriesThunk } from '@/lib/store/slices/whitePaperCategorySlice';
+import {
+  clearWhitePaperExcelPreview,
+  previewWhitePaperExcelThunk,
+  uploadWhitePaperExcelThunk,
+} from '@/lib/store/slices/whitePaperSlice';
 import { BrandLine } from '@/components/BrandLine';
-import { Upload, ImagePlus, FileText, ChevronLeft, Loader2 } from 'lucide-react';
+import { BarChart3, ChevronLeft, Eye, FileSpreadsheet, FileText, ImagePlus, Upload } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+
+const EXCEL_TYPES = ['.xlsx', '.xls'];
+
 export default function CreateWhitePaper() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { loading } = useAppSelector(state => state.whitePaper);
-  const { items: categories } = useAppSelector(state => state.wpCategory);
+  const { excelPreview, loading } = useAppSelector(state => state.whitePaper);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category_id: '',
-  });
-
-  // File State
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  const excelInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.title.trim()) newErrors.title = 'Project title is required';
-    if (!formData.category_id) newErrors.category_id = 'Please select a category';
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!imageFile) newErrors.image = 'Feature image is required'; // Now required
-    if (!pdfFile) newErrors.pdf = 'PDF file is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  // Fetch categories for the dropdown
   useEffect(() => {
-    dispatch(fetchWPCategoriesThunk({ page: 1, limit: 100 }));
-  }, [dispatch]);
+    return () => {
+      dispatch(clearWhitePaperExcelPreview());
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+    };
+  }, [dispatch, coverPreview]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverImage(file);
+    setCoverPreview(URL.createObjectURL(file));
   };
 
-  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPdfFile(file);
-      if (errors.pdf) setErrors({ ...errors, pdf: '' });
-    }
+  const buildFormData = () => {
+    const data = new FormData();
+    if (excelFile) data.append('excel_file', excelFile);
+    if (coverImage) data.append('cover_image', coverImage);
+    if (pdfFile) data.append('pdf_file', pdfFile);
+    return data;
   };
-  const handlePublish = async () => {
-    if (!validate()) {
-      toast.error('Please fill in all required fields');
+
+  const handlePreview = async () => {
+    if (!excelFile) {
+      toast.error('Please select an Excel file first');
       return;
     }
-    setIsSubmitting(true);
-    const loadingToast = toast.loading('Publishing white paper...');
-    const data = new FormData();
-    data.append('title', formData.title);
-    data.append('description', formData.description);
-    data.append('category_id', formData.category_id);
-
-    if (imageFile) data.append('image', imageFile);
-    if (pdfFile) data.append('pdf_file', pdfFile);
-
+    const toastId = toast.loading('Generating preview...');
     try {
-      await dispatch(createWhitePaperThunk(data)).unwrap();
-      toast.success('White paper published!', { id: loadingToast });
-      router.push('/white-paper');
-    } catch (err: any) {
-      toast.error(err || 'Failed to publish white paper.', { id: loadingToast });
-      setIsSubmitting(false);
+      await dispatch(previewWhitePaperExcelThunk(buildFormData())).unwrap();
+      toast.success('Preview ready', { id: toastId });
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'Preview failed', { id: toastId });
     }
   };
-  const ErrorMsg = ({ name }: { name: string }) =>
-    errors[name] ? <p className="text-[12px] text-red-500 mt-1.5 font-medium">{errors[name]}</p> : null;
+
+  const handlePublish = async () => {
+    if (!excelFile) {
+      toast.error('Please select an Excel file first');
+      return;
+    }
+    const toastId = toast.loading('Publishing whitepaper...');
+    try {
+      await dispatch(uploadWhitePaperExcelThunk(buildFormData())).unwrap();
+      toast.success('Whitepaper published!', { id: toastId });
+      router.push('/white-paper');
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'Failed to publish', { id: toastId });
+    }
+  };
+
+  const categoryTags: string[] = Array.isArray(excelPreview?.category_tags) ? excelPreview.category_tags : [];
+  const frameworks: string[] = Array.isArray(excelPreview?.frameworks_covered) ? excelPreview.frameworks_covered : [];
+  const keyInsights: string[] = Array.isArray(excelPreview?.key_insights) ? excelPreview.key_insights : [];
+  const summaryParagraphs: string[] = Array.isArray(excelPreview?.summary_content?.paragraphs)
+    ? excelPreview.summary_content.paragraphs
+    : [];
+  const graphs: any[] = Array.isArray(excelPreview?.graphs) ? excelPreview.graphs : [];
+  const relatedCount = Array.isArray(excelPreview?.related_whitepapers)
+    ? excelPreview.related_whitepapers.length
+    : 0;
 
   return (
     <div className="max-w-5xl space-y-10 pb-20">
       <Toaster position="top-right" />
+
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-gray-500 hover:text-astraa-violet transition text-sm font-medium"
       >
-        <ChevronLeft size={16} /> Back to List
+        <ChevronLeft size={16} />
+        Back to List
       </button>
 
       <div className="flex items-center gap-4">
         <BrandLine />
         <div>
-          <h1 className="text-3xl font-bold text-astraa-dark tracking-tight">Upload White Paper</h1>
-          <p className="text-sm text-gray-500 mt-1">Publish technical documents and research reports</p>
+          <h1 className="text-3xl font-bold text-astraa-dark tracking-tight">Create Whitepaper</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Upload the Excel workbook, cover image and PDF, preview, then publish.
+          </p>
         </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-10 space-y-10">
-        <div className="grid grid-cols-2 gap-8">
-          {/* Title */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Document Title</label>
-            <input
-              type="text"
-              placeholder="e.g., Annual Sustainability Report 2026"
-              value={formData.title}
-              onChange={e => {
-                setFormData({ ...formData, title: e.target.value });
-                if (errors.title) setErrors({ ...errors, title: '' });
-              }}
-              className={`w-full border rounded-lg px-4 py-3 text-[15px] outline-none transition ring-offset-1 focus:ring-2 ${
-                errors.title
-                  ? 'border-red-500 ring-red-100'
-                  : 'border-gray-200 focus:border-astraa-violet focus:ring-astraa-violet/10'
-              }`}
-            />
-            <ErrorMsg name="title" />
-          </div>
-
-          {/* Category Dropdown */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">Category</label>
-            <select
-              value={formData.category_id}
-              onChange={e => {
-                setFormData({ ...formData, category_id: e.target.value });
-                if (errors.category_id) setErrors({ ...errors, category_id: '' });
-              }}
-              className={`w-full border rounded-lg px-4 py-3 text-[15px] outline-none transition ring-offset-1 focus:ring-2 ${
-                errors.category_id
-                  ? 'border-red-500 ring-red-100'
-                  : 'border-gray-200 focus:border-astraa-violet focus:ring-astraa-violet/10'
-              }`}
-            >
-              <option value="">Select a category</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <ErrorMsg name="category_id" />
-          </div>
-        </div>
-
-        {/* Description */}
         <div className="space-y-3">
-          <label className="text-sm font-semibold text-gray-700">Description / Abstract</label>
-          <textarea
-            rows={4}
-            placeholder="Briefly describe the contents of this white paper..."
-            value={formData.description}
-            onChange={e => {
-              setFormData({ ...formData, description: e.target.value });
-              if (errors.description) setErrors({ ...errors, description: '' });
-            }}
-            className={`w-full border rounded-lg px-4 py-3 text-[15px] outline-none resize-none transition ring-offset-1 focus:ring-2 ${
-              errors.description
-                ? 'border-red-500 ring-red-100'
-                : 'border-gray-200 focus:border-astraa-violet focus:ring-astraa-violet/10'
-            }`}
+          <label className="text-sm font-semibold text-gray-700">Whitepaper Excel</label>
+          <input
+            type="file"
+            hidden
+            ref={excelInputRef}
+            accept={EXCEL_TYPES.join(',')}
+            onChange={e => setExcelFile(e.target.files?.[0] ?? null)}
           />
-          <ErrorMsg name="description" />
+          <div
+            onClick={() => excelInputRef.current?.click()}
+            className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex items-center gap-4 cursor-pointer hover:border-astraa-violet hover:bg-astraa-violet/5 transition"
+          >
+            <FileSpreadsheet size={28} className={excelFile ? 'text-astraa-violet' : 'text-gray-300'} />
+            <div>
+              <p className="text-sm font-semibold text-gray-700">
+                {excelFile ? excelFile.name : 'Upload .xlsx workbook'}
+              </p>
+              <p className="text-xs text-gray-400">
+                Sheets: Basic Info, Summary, Key Insights, Related, Graphical Insights
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-8">
-          {/* Feature Image Upload */}
           <div className="space-y-3">
             <label className="text-sm font-semibold text-gray-700">Cover Image</label>
-            <input type="file" hidden ref={imageInputRef} accept="image/*" onChange={handleImageChange} />
+            <input type="file" hidden ref={coverInputRef} accept="image/*" onChange={handleCoverChange} />
             <div
-              onClick={() => imageInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition ${
-                errors.image
-                  ? 'border-red-300 bg-red-50'
-                  : 'border-gray-200 hover:border-astraa-violet hover:bg-astraa-violet/5'
-              }`}
+              onClick={() => coverInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 rounded-xl p-6 min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:border-astraa-violet hover:bg-astraa-violet/5 transition"
             >
-              {imagePreview ? (
-                <div className="relative w-full h-full">
-                  <img src={imagePreview} className="h-40 w-full object-cover rounded-lg shadow-sm" alt="Preview" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center rounded-lg">
-                    <span className="text-white text-xs font-bold uppercase">Change Image</span>
-                  </div>
-                </div>
+              {coverPreview ? (
+                <img src={coverPreview} className="h-40 w-full object-cover rounded-lg" alt="Cover preview" />
               ) : (
-                <div className="flex flex-col items-center text-gray-400 group-hover:text-astraa-violet">
-                  <ImagePlus size={32} className="mb-2" />
-                  <p className="text-sm font-semibold">Upload Cover</p>
+                <div className="flex flex-col items-center">
+                  <ImagePlus size={24} className="text-gray-400 mb-2" />
+                  <p className="text-sm font-semibold text-gray-700">Upload Cover Image</p>
+                  <p className="text-xs text-gray-400">PNG, JPG</p>
                 </div>
               )}
             </div>
-            <ErrorMsg name="image" />
           </div>
 
-          {/* PDF Upload */}
           <div className="space-y-3">
-            <label className="text-sm font-semibold text-gray-700">White Paper PDF</label>
-            <input type="file" hidden ref={pdfInputRef} accept=".pdf" onChange={handlePdfChange} />
+            <label className="text-sm font-semibold text-gray-700">Whitepaper PDF</label>
+            <input type="file" hidden ref={pdfInputRef} accept=".pdf" onChange={e => setPdfFile(e.target.files?.[0] ?? null)} />
             <div
               onClick={() => pdfInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer min-h-[180px] transition group ${
-                errors.pdf
-                  ? 'border-red-300 bg-red-50'
-                  : 'border-gray-200 hover:border-astraa-violet hover:bg-astraa-violet/5'
-              }`}
+              className="border-2 border-dashed border-gray-200 rounded-xl p-6 min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:border-astraa-violet hover:bg-astraa-violet/5 transition group"
             >
               {pdfFile ? (
                 <div className="flex flex-col items-center gap-2">
                   <FileText size={32} className="text-astraa-violet" />
-                  <span className="text-sm font-medium text-astraa-dark truncate max-w-[200px]">{pdfFile.name}</span>
-                  <span className="text-[10px] text-astraa-violet font-bold uppercase">Change PDF</span>
+                  <span className="text-xs font-semibold text-astraa-violet text-center px-4 line-clamp-1">
+                    {pdfFile.name}
+                  </span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center text-gray-400 group-hover:text-astraa-violet">
-                  <FileText size={32} className="mb-2" />
-                  <p className="text-sm font-semibold">Upload Document</p>
+                <div className="flex flex-col items-center py-4">
+                  <FileText size={28} className="text-gray-300 group-hover:text-astraa-violet mb-2" />
+                  <span className="text-sm font-medium text-gray-500 group-hover:text-astraa-violet">Upload PDF</span>
                 </div>
               )}
             </div>
-            <ErrorMsg name="pdf" />
           </div>
         </div>
+
+        {excelPreview ? (
+          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-6 space-y-5">
+            <div className="flex items-center gap-2 text-astraa-violet">
+              <Eye size={16} />
+              <span className="text-xs font-bold uppercase tracking-wide">Parsed Preview</span>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-astraa-dark">{excelPreview.title || 'Untitled Whitepaper'}</h3>
+              {excelPreview.subtitle ? <p className="text-sm text-gray-500 mt-1">{excelPreview.subtitle}</p> : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-600">
+              <p><span className="font-semibold text-gray-700">Slug:</span> {excelPreview.slug || '—'}</p>
+              <p><span className="font-semibold text-gray-700">Industry:</span> {excelPreview.industry_tag || '—'}</p>
+              <p><span className="font-semibold text-gray-700">Report type:</span> {excelPreview.report_type || '—'}</p>
+              <p><span className="font-semibold text-gray-700">Pages:</span> {excelPreview.pages || '—'}</p>
+              <p><span className="font-semibold text-gray-700">Published:</span> {excelPreview.published ? 'Yes' : 'No (draft)'}</p>
+              <p>
+                <span className="font-semibold text-gray-700">Graphical:</span>{' '}
+                {excelPreview.graphical_enabled ? `Enabled (${graphs.length} charts)` : 'Disabled'}
+              </p>
+            </div>
+
+            {categoryTags.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {categoryTags.map((tag, i) => (
+                  <span key={`${tag}-${i}`} className="rounded-full bg-astraa-violet/10 px-3 py-1 text-xs font-medium text-astraa-violet">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {frameworks.length > 0 ? (
+              <p className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-700">Frameworks:</span> {frameworks.join(', ')}
+              </p>
+            ) : null}
+
+            {summaryParagraphs.length > 0 ? (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Summary</p>
+                <p className="text-sm text-gray-600 line-clamp-3">{summaryParagraphs[0]}</p>
+              </div>
+            ) : null}
+
+            {keyInsights.length > 0 ? (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
+                  Key Insights ({keyInsights.length})
+                </p>
+                <ul className="space-y-1.5">
+                  {keyInsights.slice(0, 4).map((insight, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-gray-600">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-astraa-violet" />
+                      <span>{insight}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {graphs.length > 0 ? (
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">
+                  <BarChart3 size={14} />
+                  Charts ({graphs.length})
+                </div>
+                <ul className="space-y-1.5">
+                  {graphs.map((chart, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-gray-600">
+                      <span className="font-medium text-gray-700">{chart.type}</span>
+                      <span>· {chart.title} ({Array.isArray(chart.points) ? chart.points.length : 0} points)</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-700">Related cards:</span> {relatedCount}
+            </p>
+          </div>
+        ) : null}
 
         <div className="flex justify-between items-center pt-8 border-t border-gray-100">
           <button
             type="button"
-            onClick={() => router.back()}
-            className="cursor-pointer px-6 py-2.5 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+            onClick={handlePreview}
+            disabled={loading || !excelFile}
+            className="cursor-pointer px-6 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2 transition"
           >
-            Cancel
+            <Eye size={16} />
+            Preview
           </button>
           <button
             onClick={handlePublish}
-            disabled={isSubmitting}
+            disabled={loading || !excelFile}
             className="cursor-pointer px-8 py-2.5 bg-astraa-violet text-white rounded-lg text-sm font-bold shadow-md hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition"
           >
-            {isSubmitting ? (
+            {loading ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <Upload size={16} />
             )}
-            {isSubmitting ? 'Publishing...' : 'Publish White Paper'}
+            {loading ? 'Working...' : 'Publish Whitepaper'}
           </button>
         </div>
       </div>

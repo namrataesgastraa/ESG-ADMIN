@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_ROUTES = ['/login']
-const AUTH_REDIRECT = '/login'
-const DEFAULT_PROTECTED = '/dashboard'
+const PUBLIC_ROUTES = ['/login', '/admin/login']
+const AUTH_REDIRECT = '/admin/login'
+const DEFAULT_PROTECTED = '/admin/blogs'
 
-/**
- * Protects dashboard routes and redirects users based on auth cookie state.
- */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const accessToken = request.cookies.get('access_token')?.value
   const isAuthenticated = Boolean(accessToken)
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
 
-  if (pathname === '/') {
-    const redirectPath = isAuthenticated ? DEFAULT_PROTECTED : AUTH_REDIRECT
-    return NextResponse.redirect(new URL(redirectPath, request.url))
+  if (pathname === '/' || pathname === '/admin') {
+    return NextResponse.redirect(
+      new URL(isAuthenticated ? DEFAULT_PROTECTED : AUTH_REDIRECT, request.url)
+    )
   }
 
   if (isAuthenticated && isPublicRoute) {

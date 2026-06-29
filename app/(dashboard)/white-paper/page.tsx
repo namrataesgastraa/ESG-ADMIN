@@ -147,17 +147,18 @@ export default function WhitePaperList() {
                   </td>
                   <td className="px-8 py-5">
                     <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md">
-                      {wp.category?.name || 'Uncategorized'}
+                      {wp.industry_tag || wp.category?.name || 'Uncategorized'}
                     </span>
                   </td>
 
                   {/* Status */}
                   <td className="px-8 py-5">
                     <button
-                      //   onClick={() => dispatch(toggleWhitePaperStatusThunk({ id: wp.id, isActive: !wp.is_active }))}
-                      className={`px-3 py-1 text-xs font-bold rounded-full transition-colors ${
-                        wp.is_active ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'
+                      onClick={() => dispatch(toggleWhitePaperStatusThunk({ id: wp.id, isActive: !wp.is_active }))}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer ${
+                        wp.is_active ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
+                      title={wp.is_active ? 'Click to unpublish' : 'Click to publish'}
                     >
                       {wp.is_active ? 'Active' : 'Draft'}
                     </button>
