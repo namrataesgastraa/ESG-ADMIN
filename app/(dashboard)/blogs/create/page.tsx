@@ -18,12 +18,10 @@ export default function CreateBlog() {
   const dispatch = useAppDispatch();
   const { loading, excelPreview } = useAppSelector(state => state.blog);
 
-  // Active Tab Navigation Control
   const [activeTab, setActiveTab] = useState('profiles');
 
-  // Form State
   const [formData, setFormData] = useState({
-    blogName: 'ESG Astraa Admin', // Sensible required default
+    blogName: 'ESG Astraa Admin',
     websiteUrl: '',
     linkedinUrl: '',
     instagramUrl: '',
@@ -37,7 +35,6 @@ export default function CreateBlog() {
     coverCaption: '',
   });
 
-  // Native File Upload State
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [excelPreviewData, setExcelPreviewData] = useState<any | null>(null);
@@ -47,11 +44,9 @@ export default function CreateBlog() {
   const [tab5Image, setTab5Image] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
-  // Validation States
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Dynamic Content Collections State
   const [tabs, setTabs] = useState([
     { tab_order: 1, heading: 'What Just Happened', section_image_caption: '', paragraphs: ['', '', ''] },
     {
@@ -94,7 +89,6 @@ export default function CreateBlog() {
 
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  // Memory cleanup for uploaded blobs
   useEffect(() => {
     return () => {
       if (coverPreview && coverPreview.startsWith('blob:')) {
@@ -103,7 +97,6 @@ export default function CreateBlog() {
     };
   }, [coverPreview]);
 
-  // Strict Validation: Only Blog Name and Main Title are required
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.blogName.trim()) newErrors.blogName = 'Brand Name is strictly required.';
@@ -122,7 +115,6 @@ export default function CreateBlog() {
     }
   };
 
-  // Safe Index Helpers with full Optional Chaining guards
   const updateTabParagraph = (tabIndex: number, pIndex: number, value: string) => {
     const updated = [...tabs];
     const target = updated[tabIndex];
@@ -266,7 +258,6 @@ const handleExcelPublish = async () => {
     setIsSubmitting(true);
     const loadingToast = toast.loading('Publishing dynamic CMS post structure...');
 
-    // Transform local arrays back into API expected content nested blocks
     const formattedTabs = tabs.map(tab => {
       const baseTab: any = {
         tab_order: tab.tab_order,
@@ -314,7 +305,6 @@ const handleExcelPublish = async () => {
     <form onSubmit={handlePublish} className="max-w-6xl space-y-10 pb-20 text-astraa-dark antialiased">
       <Toaster position="top-right" />
 
-      {/* Back Link Wrapper */}
       <button
         type="button"
         onClick={() => router.back()}
@@ -323,7 +313,6 @@ const handleExcelPublish = async () => {
         <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard List
       </button>
 
-      {/* Main Header Display Row */}
       <div className="flex items-center justify-between border-b border-gray-100 pb-6">
         <div className="flex items-center gap-4">
           <BrandLine />
@@ -376,14 +365,6 @@ const handleExcelPublish = async () => {
     </button>
   </div>
 </div>
-        {/* <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-6 py-3 bg-astraa-violet text-white text-sm font-bold rounded-lg hover:opacity-95 active:scale-[0.99] transition flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
-        >
-          {isSubmitting ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
-          Publish CMS Post
-        </button> */}
       </div>
 <div className="bg-white border border-purple-100 rounded-xl p-6 shadow-sm space-y-4">
   <div>
@@ -518,10 +499,7 @@ const handleExcelPublish = async () => {
     ))}
   </div>
 )}
-      {/* Split Workspace Layout */}
       <div className="flex gap-8 items-start">
-        
-        {/* Left Vertical Tab Navigation Bar */}
         <div className="w-64 space-y-2 shrink-0 bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 block mb-2 select-none">
             Form Workspaces
@@ -555,10 +533,7 @@ const handleExcelPublish = async () => {
           })}
         </div>
 
-        {/* Right Active View Form Container */}
         <div className="flex-grow">
-          
-          {/* Workspace: Brand Channel Profiles */}
           {activeTab === 'profiles' && (
             <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
               <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
@@ -641,7 +616,6 @@ const handleExcelPublish = async () => {
             </div>
           )}
 
-          {/* Workspace: Hero Layout Settings */}
           {activeTab === 'hero' && (
             <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
               <h3 className="text-xs font-bold text-astraa-violet uppercase tracking-widest border-b border-gray-100 pb-3">
@@ -762,7 +736,6 @@ const handleExcelPublish = async () => {
             </div>
           )}
 
-          {/* Workspace: Dynamic Tab Builder Framework Matrix */}
           {activeTab === 'matrix' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
               <div className="flex flex-col space-y-1 border-b border-gray-100 pb-2 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
@@ -799,7 +772,6 @@ const handleExcelPublish = async () => {
                     </div>
                   </div>
 
-                  {/* Paragraph Nodes Sequence Element */}
                   {tab.paragraphs && (
                     <div className="space-y-3.5">
                       <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
@@ -818,7 +790,6 @@ const handleExcelPublish = async () => {
                     </div>
                   )}
 
-                  {/* Information Matrix Pillar Cards Rendering (Tab 2 Target) */}
                   {tab.cards && (
                     <div className="space-y-4 pt-2">
                       <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
